@@ -21,8 +21,12 @@ const containerVariants = {
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 }
+  hidden: { opacity: 0, y: 10 },
+  show: { 
+    opacity: 1, 
+    y: 0,
+    transition: { ease: "easeOut", duration: 0.2 }
+  }
 };
 
 const RepoList: React.FC<RepoListProps> = ({ repos, onSelectRepo, onCreateRepo, refreshing }) => {
@@ -34,17 +38,17 @@ const RepoList: React.FC<RepoListProps> = ({ repos, onSelectRepo, onCreateRepo, 
 
   return (
     <motion.div 
-      initial={{ opacity: 0, x: -20 }}
+      initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      transition={{ duration: 0.3 }}
+      exit={{ opacity: 0, x: -10 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       className="p-4 max-w-4xl mx-auto pb-24"
     >
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-white">Repositories</h2>
         <motion.button 
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={onCreateRepo}
           className="bg-github-primary hover:bg-github-primaryHover text-white px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors shadow-lg shadow-github-primary/20"
         >
@@ -83,7 +87,7 @@ const RepoList: React.FC<RepoListProps> = ({ repos, onSelectRepo, onCreateRepo, 
               key={repo.id} 
               variants={itemVariants}
               onClick={() => onSelectRepo(repo)}
-              whileHover={{ scale: 1.01, backgroundColor: '#1c2128' }}
+              whileHover={{ scale: 1.01, backgroundColor: '#1c2128', transition: { duration: 0.2 } }}
               whileTap={{ scale: 0.99 }}
               className="bg-github-card border border-github-border rounded-lg p-4 cursor-pointer hover:border-github-secondary transition-colors shadow-sm"
             >

@@ -208,7 +208,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       className="flex flex-col h-full bg-github-dark min-h-screen relative"
     >
       {/* Header */}
@@ -273,6 +273,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
             className="bg-github-card border border-github-border rounded-lg overflow-hidden flex flex-col h-full shadow-lg"
           >
             <div className="bg-github-btn border-b border-github-border p-2 flex justify-between items-center">
@@ -325,6 +326,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
              className="bg-github-card border border-github-border rounded-lg overflow-hidden shadow-sm"
              initial={{ opacity: 0 }}
              animate={{ opacity: 1 }}
+             transition={{ duration: 0.2 }}
           >
             {contents.length === 0 ? (
                <div className="p-12 text-center text-github-secondary flex flex-col items-center gap-3">
@@ -343,7 +345,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
                    key={item.sha}
                    initial={{ opacity: 0, y: 10 }}
                    animate={{ opacity: 1, y: 0 }}
-                   transition={{ delay: idx * 0.03 }}
+                   transition={{ duration: 0.15, ease: "easeOut", delay: idx * 0.02 }}
                    onClick={() => item.type === 'dir' ? handleNavigate(item.name) : handleFileClick(item)}
                    className="flex items-center gap-3 p-3.5 border-b border-github-border last:border-0 hover:bg-github-btn cursor-pointer transition-colors group"
                  >
@@ -375,13 +377,15 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
                   initial={{ opacity: 0 }} 
                   animate={{ opacity: 1 }} 
                   exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
                   onClick={() => setShowActions(false)}
                   className="fixed inset-0 bg-black/60 z-20 backdrop-blur-[1px]" 
                 />
                 <motion.div 
-                  initial={{ y: 100, opacity: 0 }}
+                  initial={{ y: 50, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: 100, opacity: 0 }}
+                  exit={{ y: 50, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
                   className="fixed bottom-0 left-0 right-0 bg-github-card border-t border-github-border p-6 z-30 rounded-t-2xl shadow-2xl pb-10 safe-area-bottom"
                 >
                   <div className="flex justify-between items-center mb-6">
@@ -391,7 +395,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
                         Upload to: <span className="font-mono text-blue-400">/{path || 'root'}</span>
                       </p>
                     </div>
-                    <button onClick={() => setShowActions(false)} className="bg-github-btn p-2 rounded-full">
+                    <button onClick={() => setShowActions(false)} className="bg-github-btn p-2 rounded-full hover:bg-github-border transition-colors">
                       <X size={20} />
                     </button>
                   </div>
@@ -447,10 +451,10 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
 
           {!showActions && (
             <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setShowActions(true)}
-              className="fixed bottom-6 right-6 bg-github-primary text-white p-4 rounded-full shadow-lg shadow-github-primary/40 z-20 flex items-center justify-center"
+              className="fixed bottom-6 right-6 bg-github-primary text-white p-4 rounded-full shadow-lg shadow-github-primary/40 z-20 flex items-center justify-center transition-transform duration-200"
             >
               <Upload size={24} />
             </motion.button>

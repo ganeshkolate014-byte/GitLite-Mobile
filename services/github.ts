@@ -17,17 +17,39 @@ export const fetchRepos = async (token: string): Promise<Repository[]> => {
   return response.json();
 };
 
-// Create a new Repository
-export const createRepo = async (token: string, name: string, isPrivate: boolean): Promise<Repository> => {
+// Create a new Repository with advanced options
+export const createRepo = async (
+  token: string, 
+  name: string, 
+  description: string,
+  isPrivate: boolean,
+  autoInit: boolean,
+  gitignoreTemplate?: string,
+  licenseTemplate?: string
+): Promise<Repository> => {
+  const body: any = {
+    name,
+    description,
+    private: isPrivate,
+    auto_init: autoInit,
+  };
+
+  if (gitignoreTemplate && gitignoreTemplate !== 'None') {
+    body.gitignore_template = gitignoreTemplate;
+    body.auto_init = true; // GitHub requires init to add files
+  }
+
+  if (licenseTemplate && licenseTemplate !== 'None') {
+    body.license_template = licenseTemplate;
+    body.auto_init = true;
+  }
+
   const response = await fetch(`${BASE_URL}/user/repos`, {
     method: 'POST',
     headers: getHeaders(token),
-    body: JSON.stringify({
-      name,
-      private: isPrivate,
-      auto_init: true, // Auto create README to initialize main branch
-    }),
+    body: JSON.stringify(body),
   });
+
   if (!response.ok) {
     const err = await response.json();
     throw new Error(err.message || 'Failed to create repository');
