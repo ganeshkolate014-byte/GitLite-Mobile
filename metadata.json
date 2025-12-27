@@ -1,0 +1,5 @@
+{
+  "name": "GitMobile",
+  "description": "A mobile-first, lightweight GitHub client for managing repositories, browsing files, and quick commits on the go.",
+  "requestFramePermissions": []
+}
