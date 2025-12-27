@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Repository, FileEntry } from '../types';
 import { getContents, deleteFile, putFile, readFileAsBase64, fromBase64, toBase64 } from '../services/github';
 import { useAuth } from '../context/AuthContext';
-import { Folder, ArrowLeft, Upload, Trash2, ChevronRight, Download, Save, X, MoreVertical, FilePlus, FolderPlus } from 'lucide-react';
+import { Folder, ArrowLeft, Upload, Trash2, ChevronRight, Save, X, FilePlus, FolderPlus, MoreHorizontal, PenLine } from 'lucide-react';
 import { getFileIcon } from '../utils/fileHelpers';
 import JSZip from 'jszip';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,6 +11,12 @@ interface FileExplorerProps {
   repo: Repository;
   onBack: () => void;
 }
+
+const iosTransition = {
+  type: "tween" as const,
+  ease: [0.32, 0.72, 0, 1] as [number, number, number, number],
+  duration: 0.4
+};
 
 const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
   const { user } = useAuth();
@@ -31,7 +37,6 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
   useEffect(() => {
     if (viewingFile) return;
     loadContents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, repo.owner.login, repo.name, user?.githubToken]);
 
   const loadContents = async () => {
@@ -48,7 +53,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
         setContents(sorted);
       }
     } catch (error) {
-      console.error("Failed to load contents", error);
+      console.error(error);
       setStatusMsg("Error loading folder contents.");
     } finally {
       setLoading(false);
@@ -140,7 +145,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
     if (!files || files.length === 0 || !user?.githubToken) return;
     
     setUploading(true);
-    setStatusMsg(`Starting upload...`);
+    setStatusMsg(`Processing ${files.length} files...`);
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -150,43 +155,22 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
            setStatusMsg(`Extracting ${file.name}...`);
            const zip = new JSZip();
            const zipContent = await zip.loadAsync(file);
-           
            const entries = Object.keys(zipContent.files);
            let processed = 0;
-           
            for (const filename of entries) {
              const entry = zipContent.files[filename];
              if (entry.dir) continue; 
-
              const blob = await entry.async('blob');
              const entryBase64 = await readFileAsBase64(new File([blob], filename));
              const uploadPath = path ? `${path}/${filename}` : filename;
-             
-             setStatusMsg(`Uploading ${filename} (${processed + 1}/${entries.length})...`);
-             await putFile(
-                user.githubToken,
-                repo.owner.login,
-                repo.name,
-                uploadPath,
-                entryBase64,
-                `Upload ${filename} from zip`
-             );
+             await putFile(user.githubToken, repo.owner.login, repo.name, uploadPath, entryBase64, `Upload ${filename}`);
              processed++;
            }
         } else {
           const base64 = await readFileAsBase64(file);
           const relativePath = file.webkitRelativePath || file.name;
           const uploadPath = path ? `${path}/${relativePath}` : relativePath;
-
-          setStatusMsg(`Uploading ${relativePath}...`);
-          await putFile(
-            user.githubToken,
-            repo.owner.login,
-            repo.name,
-            uploadPath,
-            base64,
-            `Upload ${file.name}`
-          );
+          await putFile(user.githubToken, repo.owner.login, repo.name, uploadPath, base64, `Upload ${file.name}`);
         }
       }
       setStatusMsg("Upload complete!");
@@ -205,138 +189,143 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, x: 20 }}
+      initial={{ opacity: 0, x: 50 }}
       animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-      className="flex flex-col h-full bg-github-dark min-h-screen relative"
+      exit={{ opacity: 0, x: 50 }}
+      transition={iosTransition}
+      className="flex flex-col h-full min-h-screen bg-black"
     >
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-github-card/95 backdrop-blur-sm border-b border-github-border p-4 shadow-sm">
-        <div className="flex items-center gap-2 text-github-text mb-2">
-           <button onClick={handleNavigateUp} className="p-2 hover:bg-github-btn rounded-full transition-colors">
-             <ArrowLeft size={20} />
+      {/* iOS Glass Header */}
+      <div className="sticky top-0 z-20 glass-panel border-b border-white/10 pt-safe-top">
+        <div className="flex items-center px-4 py-3 gap-3">
+           <button 
+            onClick={handleNavigateUp} 
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 text-white active:scale-95 transition-transform"
+           >
+             <ArrowLeft size={18} strokeWidth={2.5} />
            </button>
-           <h2 className="font-semibold text-lg truncate flex-1">{repo.name}</h2>
+           <div className="flex-1 min-w-0">
+              <h2 className="font-semibold text-[17px] text-white truncate text-center pr-8">{repo.name}</h2>
+              {/* Subtle Path Indicator */}
+              {path && <div className="text-[11px] text-zinc-500 text-center truncate font-medium mt-0.5">{path}</div>}
+           </div>
         </div>
         
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-1 text-sm text-github-secondary overflow-x-auto whitespace-nowrap pb-1 px-1 scrollbar-hide">
-          <span 
+        {/* Scrollable Breadcrumbs - Pill Style */}
+        <div className="px-4 pb-3 flex items-center gap-2 overflow-x-auto scrollbar-hide mask-fade-right">
+          <button 
             onClick={() => { setPath(''); setViewingFile(null); }}
-            className={`cursor-pointer hover:text-blue-400 transition-colors ${!path ? 'font-bold text-white bg-github-btn px-2 py-0.5 rounded' : ''}`}
+            className={`flex-shrink-0 px-3 py-1 rounded-full text-[13px] font-medium transition-colors ${!path ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-400'}`}
           >
-            root
-          </span>
+            Root
+          </button>
           {pathParts.map((part, index) => (
              <React.Fragment key={index}>
-               <ChevronRight size={14} className="text-gray-600" />
-               <span 
+               <ChevronRight size={12} className="text-zinc-600 flex-shrink-0" />
+               <button 
                  onClick={() => {
                     setPath(pathParts.slice(0, index + 1).join('/'));
                     setViewingFile(null);
                  }}
-                 className={`cursor-pointer hover:text-blue-400 transition-colors ${index === pathParts.length - 1 && !viewingFile ? 'font-bold text-white bg-github-btn px-2 py-0.5 rounded' : ''}`}
+                 className={`flex-shrink-0 px-3 py-1 rounded-full text-[13px] font-medium transition-colors ${index === pathParts.length - 1 && !viewingFile ? 'bg-white text-black' : 'bg-zinc-800 text-zinc-400'}`}
                >
                  {part}
-               </span>
+               </button>
              </React.Fragment>
           ))}
-          {viewingFile && (
-             <>
-                <ChevronRight size={14} className="text-gray-600" />
-                <span className="font-bold text-white bg-github-btn px-2 py-0.5 rounded truncate max-w-[150px]">{viewingFile.name}</span>
-             </>
-          )}
         </div>
-        
+
         {statusMsg && (
            <motion.div 
              initial={{ opacity: 0, height: 0 }} 
              animate={{ opacity: 1, height: 'auto' }}
-             className="text-xs text-blue-400 mt-2 font-mono bg-blue-900/20 px-2 py-1 rounded"
+             className="bg-blue-500/10 backdrop-blur-md px-4 py-1.5 text-center"
            >
-             {statusMsg}
+             <span className="text-[12px] font-semibold text-blue-400">{statusMsg}</span>
            </motion.div>
         )}
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-4 pb-32">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-32 custom-scroll">
         {loading ? (
-          <div className="flex justify-center items-center h-40 text-github-secondary gap-2">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-            Loading...
+          <div className="flex flex-col items-center justify-center h-64 gap-3 opacity-60">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-700 border-t-white"></div>
+            <span className="text-zinc-500 font-medium">Loading content...</span>
           </div>
         ) : viewingFile ? (
-          // FILE VIEWER
+          // FILE EDITOR / VIEWER
           <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="bg-github-card border border-github-border rounded-lg overflow-hidden flex flex-col h-full shadow-lg"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={iosTransition}
+            className="flex flex-col h-full"
           >
-            <div className="bg-github-btn border-b border-github-border p-2 flex justify-between items-center">
-               <div className="flex gap-2">
-                 {!isEditing && (
-                    <button 
-                      onClick={() => { setEditContent(fileContent); setIsEditing(true); }}
-                      className="text-xs bg-github-border hover:bg-gray-700 text-white px-3 py-1.5 rounded-md transition-colors font-medium"
-                    >
-                      Edit
-                    </button>
-                 )}
-                 {isEditing && (
-                    <>
+             <div className="flex justify-between items-center mb-4">
+                <div className="flex gap-2">
+                   {!isEditing ? (
                       <button 
-                         onClick={handleSaveFile}
-                         disabled={uploading}
-                         className="text-xs bg-github-primary hover:bg-github-primaryHover text-white px-3 py-1.5 rounded-md flex items-center gap-1 font-medium"
+                        onClick={() => { setEditContent(fileContent); setIsEditing(true); }}
+                        className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
                       >
-                        <Save size={12} /> Save
+                        <PenLine size={16} /> Edit
                       </button>
-                      <button 
-                         onClick={() => setIsEditing(false)}
-                         className="text-xs bg-red-900/30 hover:bg-red-900/50 text-red-200 px-3 py-1.5 rounded-md flex items-center gap-1 font-medium border border-red-900/50"
-                      >
-                         <X size={12} /> Cancel
-                      </button>
-                    </>
-                 )}
-               </div>
-               <button onClick={() => handleDelete(viewingFile)} className="text-github-secondary hover:text-red-400 p-2 rounded hover:bg-github-dark transition-colors">
-                 <Trash2 size={16} />
-               </button>
-            </div>
-            {isEditing ? (
-              <textarea 
-                className="w-full h-[60vh] bg-github-dark text-github-text p-4 font-mono text-sm outline-none resize-y"
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-              />
-            ) : (
-              <pre className="p-4 text-sm font-mono overflow-auto bg-github-dark h-full min-h-[50vh] text-gray-300">
-                {fileContent}
-              </pre>
-            )}
+                   ) : (
+                      <>
+                        <button 
+                           onClick={handleSaveFile}
+                           disabled={uploading}
+                           className="bg-ios-blue hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                        >
+                          <Save size={16} /> Save
+                        </button>
+                        <button 
+                           onClick={() => setIsEditing(false)}
+                           className="bg-red-500/10 text-red-500 px-4 py-2 rounded-xl text-sm font-medium"
+                        >
+                           Cancel
+                        </button>
+                      </>
+                   )}
+                </div>
+                <button 
+                  onClick={() => handleDelete(viewingFile)} 
+                  className="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 hover:text-red-500 transition-colors"
+                >
+                   <Trash2 size={18} />
+                </button>
+             </div>
+
+             <div className="flex-1 bg-[#1c1c1e] rounded-2xl border border-white/5 overflow-hidden shadow-sm relative">
+                {isEditing ? (
+                  <textarea 
+                    className="w-full h-full bg-transparent text-gray-200 p-4 font-mono text-[13px] outline-none resize-none leading-relaxed"
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    spellCheck={false}
+                  />
+                ) : (
+                  <pre className="w-full h-full p-4 font-mono text-[13px] overflow-auto text-gray-300 leading-relaxed custom-scroll">
+                    {fileContent}
+                  </pre>
+                )}
+             </div>
           </motion.div>
         ) : (
-          // FILE LIST
+          // FOLDER LIST VIEW
           <motion.div 
-             className="bg-github-card border border-github-border rounded-lg overflow-hidden shadow-sm"
+             className="flex flex-col gap-2"
              initial={{ opacity: 0 }}
              animate={{ opacity: 1 }}
-             transition={{ duration: 0.2 }}
           >
             {contents.length === 0 ? (
-               <div className="p-12 text-center text-github-secondary flex flex-col items-center gap-3">
-                 <Folder size={48} className="opacity-20" />
-                 <p>This folder is empty.</p>
-                 <button 
-                    onClick={() => setShowActions(true)}
-                    className="text-blue-400 text-sm hover:underline"
-                 >
-                   Upload some files?
+               <div className="flex flex-col items-center justify-center py-20 text-zinc-600 gap-4">
+                 <div className="w-20 h-20 bg-zinc-900 rounded-3xl flex items-center justify-center">
+                    <Folder size={32} className="opacity-50" />
+                 </div>
+                 <p className="font-medium">Folder is empty</p>
+                 <button onClick={() => setShowActions(true)} className="text-ios-blue text-sm font-medium">
+                   Upload files here
                  </button>
                </div>
             ) : (
@@ -345,21 +334,27 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
                    key={item.sha}
                    initial={{ opacity: 0, y: 10 }}
                    animate={{ opacity: 1, y: 0 }}
-                   transition={{ duration: 0.15, ease: "easeOut", delay: idx * 0.02 }}
+                   transition={{ delay: idx * 0.03, ...iosTransition }}
                    onClick={() => item.type === 'dir' ? handleNavigate(item.name) : handleFileClick(item)}
-                   className="flex items-center gap-3 p-3.5 border-b border-github-border last:border-0 hover:bg-github-btn cursor-pointer transition-colors group"
+                   whileTap={{ scale: 0.98 }}
+                   className="flex items-center gap-4 p-4 bg-[#1c1c1e] active:bg-[#2c2c2e] rounded-2xl cursor-pointer border border-transparent hover:border-white/5 transition-all"
                  >
                    {item.type === 'dir' ? (
-                     <Folder size={20} className="text-blue-400 fill-blue-400/20" />
+                     <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                        <Folder size={20} className="text-ios-blue fill-current" />
+                     </div>
                    ) : (
-                     getFileIcon(item.name)
+                     <div className="w-10 h-10 rounded-xl bg-zinc-800/50 flex items-center justify-center">
+                        {getFileIcon(item.name)}
+                     </div>
                    )}
                    <div className="flex-1 min-w-0">
-                     <div className="text-sm truncate text-gray-200 group-hover:text-blue-400 transition-colors">{item.name}</div>
+                     <div className="text-[16px] font-medium text-gray-200 truncate">{item.name}</div>
+                     <div className="text-[13px] text-zinc-500">
+                       {item.type === 'dir' ? 'Folder' : (item.size / 1024).toFixed(1) + ' KB'}
+                     </div>
                    </div>
-                   <span className="text-xs text-github-secondary font-mono">
-                     {item.size > 0 ? (item.size / 1024).toFixed(1) + ' KB' : ''}
-                   </span>
+                   <ChevronRight size={16} className="text-zinc-700" />
                  </motion.div>
                ))
             )}
@@ -367,7 +362,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
         )}
       </div>
 
-      {/* Floating Action Button & Menu */}
+      {/* iOS Action Sheet / FAB */}
       {!viewingFile && (
         <>
           <AnimatePresence>
@@ -377,86 +372,78 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ repo, onBack }) => {
                   initial={{ opacity: 0 }} 
                   animate={{ opacity: 1 }} 
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
                   onClick={() => setShowActions(false)}
-                  className="fixed inset-0 bg-black/60 z-20 backdrop-blur-[1px]" 
+                  className="fixed inset-0 bg-black/60 z-30 backdrop-blur-sm" 
                 />
                 <motion.div 
-                  initial={{ y: 50, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: 50, opacity: 0 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="fixed bottom-0 left-0 right-0 bg-github-card border-t border-github-border p-6 z-30 rounded-t-2xl shadow-2xl pb-10 safe-area-bottom"
+                  initial={{ y: "100%" }}
+                  animate={{ y: 0 }}
+                  exit={{ y: "100%" }}
+                  transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
+                  className="fixed bottom-0 left-0 right-0 bg-[#1c1c1e] z-40 rounded-t-[32px] p-6 pb-12 shadow-2xl border-t border-white/10"
                 >
-                  <div className="flex justify-between items-center mb-6">
+                  <div className="w-12 h-1 bg-zinc-700 rounded-full mx-auto mb-6" />
+                  
+                  <div className="flex justify-between items-center mb-8 px-2">
                     <div>
-                      <h3 className="text-lg font-bold text-white">Update Code Here</h3>
-                      <p className="text-xs text-github-secondary mt-1">
-                        Upload to: <span className="font-mono text-blue-400">/{path || 'root'}</span>
-                      </p>
+                      <h3 className="text-xl font-bold text-white">Upload Content</h3>
+                      <p className="text-sm text-zinc-500 mt-1">Destination: <span className="text-ios-blue font-mono">/{path}</span></p>
                     </div>
-                    <button onClick={() => setShowActions(false)} className="bg-github-btn p-2 rounded-full hover:bg-github-border transition-colors">
-                      <X size={20} />
-                    </button>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <button 
                       onClick={() => fileInputRef.current?.click()}
-                      className="bg-github-btn hover:bg-github-border p-4 rounded-xl flex flex-col items-center gap-3 transition-colors border border-github-border group"
+                      className="bg-zinc-800 active:bg-zinc-700 p-5 rounded-3xl flex flex-col items-center gap-3 transition-transform active:scale-95"
                     >
-                      <div className="bg-blue-500/10 p-3 rounded-full group-hover:bg-blue-500/20 transition-colors">
-                        <FilePlus size={24} className="text-blue-400" />
+                      <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
+                        <FilePlus size={24} className="text-ios-blue" />
                       </div>
-                      <span className="font-medium text-sm">Upload Files</span>
+                      <span className="font-semibold text-white">File</span>
                     </button>
 
                     <button 
                       onClick={() => folderInputRef.current?.click()}
-                      className="bg-github-btn hover:bg-github-border p-4 rounded-xl flex flex-col items-center gap-3 transition-colors border border-github-border group"
+                      className="bg-zinc-800 active:bg-zinc-700 p-5 rounded-3xl flex flex-col items-center gap-3 transition-transform active:scale-95"
                     >
-                      <div className="bg-green-500/10 p-3 rounded-full group-hover:bg-green-500/20 transition-colors">
-                        <FolderPlus size={24} className="text-green-400" />
+                      <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                        <FolderPlus size={24} className="text-ios-green" />
                       </div>
-                      <span className="font-medium text-sm">Upload Folder</span>
+                      <span className="font-semibold text-white">Folder</span>
                     </button>
-                    
-                     <div className="col-span-2 text-center">
-                        <p className="text-[10px] text-github-secondary">
-                          Tip: Upload a ZIP file via "Upload Files" to auto-extract contents here.
-                        </p>
-                     </div>
+                  </div>
+
+                  <div className="mt-8">
+                     <button 
+                        onClick={() => setShowActions(false)}
+                        className="w-full bg-zinc-900 text-white font-semibold py-4 rounded-2xl active:bg-zinc-800 transition-colors"
+                     >
+                        Cancel
+                     </button>
                   </div>
                 </motion.div>
               </>
             )}
           </AnimatePresence>
 
+          <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} multiple />
           <input 
-             type="file" 
-             ref={fileInputRef} 
-             className="hidden" 
-             onChange={handleFileUpload} 
-             multiple 
-           />
-           <input 
-             type="file" 
-             ref={folderInputRef} 
-             className="hidden" 
-             onChange={handleFileUpload}
-             // @ts-ignore
-             webkitdirectory="" 
-             directory="" 
-           />
+            type="file" 
+            ref={folderInputRef} 
+            className="hidden" 
+            onChange={handleFileUpload} 
+            {...({ webkitdirectory: "", directory: "" } as any)} 
+          />
 
           {!showActions && (
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => setShowActions(true)}
-              className="fixed bottom-6 right-6 bg-github-primary text-white p-4 rounded-full shadow-lg shadow-github-primary/40 z-20 flex items-center justify-center transition-transform duration-200"
+              className="fixed bottom-8 right-6 bg-ios-blue text-white w-14 h-14 rounded-full shadow-lg shadow-blue-500/30 z-20 flex items-center justify-center"
             >
-              <Upload size={24} />
+              <Upload size={24} strokeWidth={2.5} />
             </motion.button>
           )}
         </>

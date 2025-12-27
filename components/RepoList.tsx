@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Repository } from '../types';
-import { FolderGit2, Lock, Clock, Plus } from 'lucide-react';
+import { FolderGit2, Lock, Clock, Plus, Search, GitFork, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface RepoListProps {
@@ -10,22 +10,30 @@ interface RepoListProps {
   refreshing: boolean;
 }
 
+// iOS "Ease Out" Curve
+const iosTransition = {
+  type: "tween" as const,
+  ease: [0.32, 0.72, 0, 1] as [number, number, number, number],
+  duration: 0.5
+};
+
 const containerVariants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.05
+      staggerChildren: 0.08
     }
   }
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
+  hidden: { opacity: 0, y: 20, scale: 0.98 },
   show: { 
     opacity: 1, 
-    y: 0,
-    transition: { ease: "easeOut", duration: 0.2 }
+    y: 0, 
+    scale: 1,
+    transition: iosTransition
   }
 };
 
@@ -38,48 +46,54 @@ const RepoList: React.FC<RepoListProps> = ({ repos, onSelectRepo, onCreateRepo, 
 
   return (
     <motion.div 
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -10 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-      className="p-4 max-w-4xl mx-auto pb-24"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="max-w-3xl mx-auto pb-32 px-4"
     >
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-white">Repositories</h2>
-        <motion.button 
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={onCreateRepo}
-          className="bg-github-primary hover:bg-github-primaryHover text-white px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors shadow-lg shadow-github-primary/20"
-        >
-          <Plus size={16} /> New
-        </motion.button>
-      </div>
+      {/* Header Area */}
+      <div className="pt-2 pb-4">
+        <div className="flex justify-between items-end mb-4 px-1">
+          <h2 className="text-3xl font-bold tracking-tight text-white">Repositories</h2>
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={onCreateRepo}
+            className="bg-ios-blue text-white w-9 h-9 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"
+          >
+            <Plus size={20} strokeWidth={2.5} />
+          </motion.button>
+        </div>
 
-      <div className="mb-4 sticky top-[72px] z-10 bg-github-dark pb-2">
-        <input 
-          type="text" 
-          placeholder="Find a repository..." 
-          className="w-full bg-github-card border border-github-border text-white rounded-md px-3 py-3 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all shadow-sm"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        {/* iOS Style Search Bar */}
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search size={16} className="text-ios-gray" />
+          </div>
+          <input 
+            type="text" 
+            placeholder="Search" 
+            className="w-full bg-[#1c1c1e] text-white rounded-xl py-2.5 pl-9 pr-4 text-[17px] placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-ios-blue/50 transition-all"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       <motion.div 
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="grid gap-3"
+        className="flex flex-col gap-3"
       >
         {refreshing ? (
-           <div className="text-center py-12 text-github-secondary flex flex-col items-center">
-             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-4"></div>
-             Loading repositories...
+           <div className="text-center py-20 flex flex-col items-center opacity-60">
+             <div className="animate-spin rounded-full h-8 w-8 border-2 border-ios-gray border-t-white mb-4"></div>
+             <span className="text-sm font-medium text-ios-gray">Loading...</span>
            </div>
         ) : filteredRepos.length === 0 ? (
-          <div className="text-center py-12 text-github-secondary bg-github-card rounded-lg border border-github-border border-dashed">
-            No repositories found.
+          <div className="text-center py-20 bg-[#1c1c1e] rounded-2xl border border-dashed border-zinc-800 mx-1">
+            <span className="text-zinc-500">No repositories found.</span>
           </div>
         ) : (
           filteredRepos.map(repo => (
@@ -87,39 +101,44 @@ const RepoList: React.FC<RepoListProps> = ({ repos, onSelectRepo, onCreateRepo, 
               key={repo.id} 
               variants={itemVariants}
               onClick={() => onSelectRepo(repo)}
-              whileHover={{ scale: 1.01, backgroundColor: '#1c2128', transition: { duration: 0.2 } }}
-              whileTap={{ scale: 0.99 }}
-              className="bg-github-card border border-github-border rounded-lg p-4 cursor-pointer hover:border-github-secondary transition-colors shadow-sm"
+              whileTap={{ scale: 0.98 }}
+              className="group bg-[#1c1c1e] active:bg-[#2c2c2e] rounded-2xl p-4 cursor-pointer border border-transparent hover:border-zinc-800 transition-colors relative overflow-hidden"
             >
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-github-btn rounded-md">
-                    <FolderGit2 size={20} className="text-github-text" />
+              <div className="flex justify-between items-start mb-1">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="min-w-[40px] h-[40px] bg-zinc-800 rounded-xl flex items-center justify-center">
+                    <FolderGit2 size={20} className="text-white" />
                   </div>
-                  <div>
-                    <span className="font-semibold text-blue-400 hover:underline block text-base">{repo.name}</span>
-                    <span className="text-xs text-github-secondary">
-                      {repo.default_branch}
-                    </span>
+                  <div className="flex flex-col overflow-hidden">
+                    <span className="font-semibold text-[17px] text-white truncate leading-tight">{repo.name}</span>
+                    <span className="text-[13px] text-zinc-500 truncate">{repo.owner.login}</span>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                   <span className={`text-[10px] px-2 py-0.5 rounded-full border ${repo.private ? 'border-yellow-500/30 text-yellow-500 bg-yellow-500/10' : 'border-green-500/30 text-green-500 bg-green-500/10'}`}>
-                    {repo.private ? 'Private' : 'Public'}
-                  </span>
-                  {repo.private && <Lock size={12} className="text-yellow-500" />}
-                </div>
+                {repo.private && (
+                   <Lock size={14} className="text-zinc-500 mt-1" />
+                )}
               </div>
               
-              <p className="text-sm text-github-secondary mt-3 line-clamp-2 pl-[44px]">
-                {repo.description || 'No description provided.'}
-              </p>
+              {repo.description && (
+                <p className="text-[15px] text-zinc-400 mt-3 mb-4 line-clamp-2 leading-snug">
+                  {repo.description}
+                </p>
+              )}
 
-              <div className="flex items-center gap-4 mt-4 text-xs text-github-secondary pl-[44px]">
-                <span className="flex items-center gap-1">
-                  <Clock size={12} />
-                  {new Date(repo.updated_at).toLocaleDateString()}
-                </span>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+                <div className="flex items-center gap-4 text-[13px] text-zinc-500 font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <GitFork size={14} />
+                    {repo.default_branch}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Clock size={14} />
+                    {new Date(repo.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+                <div className="px-2.5 py-1 rounded-full bg-white/5 text-[11px] font-semibold text-zinc-400">
+                    {repo.private ? 'Private' : 'Public'}
+                </div>
               </div>
             </motion.div>
           ))

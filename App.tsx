@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Github, LogOut, Loader2, Info } from 'lucide-react';
+import { Github, LogOut, Loader2, X, ChevronRight, LayoutGrid } from 'lucide-react';
 import { fetchRepos, createRepo } from './services/github';
 import { Repository } from './types';
 import RepoList from './components/RepoList';
 import FileExplorer from './components/FileExplorer';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 
-const GITIGNORE_TEMPLATES = ['None', 'Node', 'Python', 'Go', 'Java', 'Ruby', 'C++', 'Swift', 'Unity', 'VisualStudio'];
-const LICENSE_TEMPLATES = ['None', 'mit', 'apache-2.0', 'gpl-3.0', 'unlicense', 'bsd-3-clause'];
+const GITIGNORE_TEMPLATES = ['None', 'Node', 'Python', 'Go', 'Java', 'C++', 'Swift', 'Unity'];
+const LICENSE_TEMPLATES = ['None', 'mit', 'apache-2.0', 'gpl-3.0', 'unlicense'];
+
+const iosTransition = {
+  type: "tween" as const,
+  ease: [0.32, 0.72, 0, 1] as [number, number, number, number],
+  duration: 0.5
+};
 
 const AppContent: React.FC = () => {
   const { user, login, logout, loading: authLoading } = useAuth();
@@ -46,6 +52,14 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const resetForm = () => {
+    setNewRepoName('');
+    setNewRepoDesc('');
+    setIsPrivate(false);
+    setGitignore('None');
+    setLicense('None');
+  };
+
   const handleCreateRepo = async () => {
     if (!newRepoName || !user?.githubToken) return;
     setCreatingRepo(true);
@@ -60,20 +74,10 @@ const AppContent: React.FC = () => {
         gitignore,
         license
       );
-      
-      // Add new repo to top of list
       setRepos([newRepo, ...repos]);
-      // Close modal and reset
       setShowCreateModal(false);
-      setNewRepoName('');
-      setNewRepoDesc('');
-      setIsPrivate(false);
-      setGitignore('None');
-      setLicense('None');
-      
-      // Auto-enter the new repo
+      resetForm();
       setSelectedRepo(newRepo);
-
     } catch (error: any) {
       setErrorMsg(error.message || "Failed to create repository");
     } finally {
@@ -83,59 +87,75 @@ const AppContent: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#0d1117] flex items-center justify-center text-white">
-        <Loader2 className="animate-spin mr-2" /> Loading GitMobile...
+      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+        <Loader2 className="animate-spin text-ios-blue" size={32} />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#0d1117] flex flex-col items-center justify-center p-4">
-        <div className="text-center mb-8">
-          <Github size={64} className="mx-auto text-white mb-4" />
-          <h1 className="text-3xl font-bold text-white mb-2">GitMobile</h1>
-          <p className="text-gray-400">Manage your repositories on the go.</p>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 relative overflow-hidden">
+        {/* Background blobs for modern feel */}
+        <div className="absolute top-[-10%] left-[-10%] w-[300px] h-[300px] bg-blue-600/20 rounded-full blur-[80px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[300px] h-[300px] bg-purple-600/20 rounded-full blur-[80px]" />
+
+        <div className="z-10 text-center max-w-sm">
+          <div className="w-20 h-20 bg-zinc-900 rounded-[24px] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-blue-900/20 border border-white/5">
+            <Github size={40} className="text-white" />
+          </div>
+          <h1 className="text-4xl font-bold text-white mb-3 tracking-tight">GitMobile</h1>
+          <p className="text-zinc-500 mb-10 text-lg leading-relaxed">
+            Your GitHub workflow,<br/> reimagined for touch.
+          </p>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={login}
+            className="w-full bg-white text-black py-4 rounded-2xl font-bold text-[17px] flex items-center justify-center gap-3 shadow-xl hover:bg-gray-100 transition-colors"
+          >
+            <Github size={22} />
+            Continue with GitHub
+          </motion.button>
         </div>
-        <button
-          onClick={login}
-          className="bg-[#238636] hover:bg-[#2ea043] text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-3 transition-all transform active:scale-95 shadow-lg shadow-green-900/50"
-        >
-          <Github size={20} />
-          Sign in with GitHub
-        </button>
-        <p className="mt-8 text-xs text-gray-600 max-w-xs text-center">
-          Note: This app runs entirely in your browser. Authentication tokens are used directly to communicate with GitHub API.
-        </p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-gray-300 overflow-hidden">
-      {/* Navbar */}
-      <div className="bg-[#161b22] border-b border-[#30363d] p-4 flex justify-between items-center sticky top-0 z-20 shadow-md">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setSelectedRepo(null)}>
-          <Github className="text-white" size={24} />
-          <h1 className="font-bold text-white hidden sm:block">GitMobile</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            {user.photoURL && (
-              <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full border border-[#30363d]" />
-            )}
-            <span className="text-sm font-medium hidden sm:block">{user.githubUsername || user.displayName}</span>
-          </div>
-          <button 
-            onClick={logout}
-            className="text-gray-400 hover:text-red-400 transition-colors"
+    <div className="min-h-screen bg-black text-gray-200 font-sans selection:bg-blue-500/30">
+      {/* Navbar - Glass Effect */}
+      <nav className="sticky top-0 z-30 glass-panel border-b border-white/5">
+        <div className="max-w-3xl mx-auto px-4 h-[60px] flex justify-between items-center">
+          <div 
+            className="flex items-center gap-3 cursor-pointer group" 
+            onClick={() => setSelectedRepo(null)}
           >
-            <LogOut size={20} />
-          </button>
+            <div className="w-8 h-8 bg-zinc-800 rounded-lg flex items-center justify-center group-hover:bg-zinc-700 transition-colors">
+               <LayoutGrid size={18} className="text-white" />
+            </div>
+            <span className="font-bold text-[17px] text-white hidden sm:block">GitMobile</span>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            {user.photoURL && (
+              <img 
+                src={user.photoURL} 
+                alt="Profile" 
+                className="w-8 h-8 rounded-full border border-white/10" 
+              />
+            )}
+            <button 
+              onClick={logout}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800/50 hover:bg-red-500/10 hover:text-red-500 transition-colors"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
-      </div>
+      </nav>
 
-      <AnimatePresence mode="wait" initial={false}>
+      {/* Main Content Area */}
+      <AnimatePresence mode="wait">
         {selectedRepo ? (
           <FileExplorer key="explorer" repo={selectedRepo} onBack={() => setSelectedRepo(null)} />
         ) : (
@@ -149,140 +169,138 @@ const AppContent: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Create Repo Modal */}
+      {/* Modern iOS Bottom Sheet / Dialog for Create Repo */}
       <AnimatePresence>
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200 overflow-y-auto max-h-[90vh]">
-              <div className="flex justify-between items-center mb-4">
-                 <h3 className="text-xl font-bold text-white">Create Repository</h3>
-                 <span className="text-xs text-github-secondary">* Required</span>
-              </div>
-              
-              {errorMsg && (
-                <div className="mb-4 bg-red-900/20 border border-red-900/50 p-3 rounded text-sm text-red-200">
-                  {errorMsg}
-                </div>
-              )}
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1 text-white">Repository Name *</label>
-                <input 
-                  type="text" 
-                  value={newRepoName}
-                  onChange={(e) => setNewRepoName(e.target.value)}
-                  className="w-full bg-[#0d1117] border border-[#30363d] rounded px-3 py-2 text-white focus:border-blue-500 outline-none"
-                  placeholder="e.g., my-awesome-project"
-                  autoFocus
-                />
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCreateModal(false)}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" 
+            />
+            <motion.div 
+              initial={{ y: "100%", opacity: 0.5 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={iosTransition}
+              className="fixed bottom-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[480px] bg-[#1c1c1e] z-50 rounded-t-[32px] sm:rounded-[32px] border border-white/10 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-white/5">
+                 <h3 className="text-xl font-bold text-white">New Repository</h3>
+                 <button onClick={() => setShowCreateModal(false)} className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center text-zinc-400">
+                    <X size={18} />
+                 </button>
               </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Description <span className="text-github-secondary">(Optional)</span></label>
-                <input 
-                  type="text" 
-                  value={newRepoDesc}
-                  onChange={(e) => setNewRepoDesc(e.target.value)}
-                  className="w-full bg-[#0d1117] border border-[#30363d] rounded px-3 py-2 text-white focus:border-blue-500 outline-none"
-                  placeholder="Short description..."
-                />
-              </div>
-
-              <div className="mb-4 border-b border-[#30363d] pb-4">
-                <label className="flex items-start gap-3 cursor-pointer p-2 rounded hover:bg-[#21262d] transition-colors">
-                  <input 
-                    type="radio" 
-                    name="privacy"
-                    checked={!isPrivate}
-                    onChange={() => setIsPrivate(false)}
-                    className="mt-1"
-                  />
-                  <div>
-                    <div className="font-medium text-white text-sm">Public</div>
-                    <div className="text-xs text-github-secondary">Anyone on the internet can see this repository.</div>
+              {/* Scrollable Form */}
+              <div className="p-6 overflow-y-auto custom-scroll">
+                {errorMsg && (
+                  <div className="mb-6 bg-red-500/10 border border-red-500/20 p-4 rounded-2xl text-sm text-red-400 font-medium">
+                    {errorMsg}
                   </div>
-                </label>
-                <label className="flex items-start gap-3 cursor-pointer p-2 rounded hover:bg-[#21262d] transition-colors mt-2">
-                   <input 
-                    type="radio" 
-                    name="privacy"
-                    checked={isPrivate}
-                    onChange={() => setIsPrivate(true)}
-                    className="mt-1"
-                  />
+                )}
+
+                <div className="space-y-6">
                   <div>
-                    <div className="font-medium text-white text-sm">Private</div>
-                    <div className="text-xs text-github-secondary">You choose who can see and commit to this repository.</div>
+                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1 mb-2 block">Name</label>
+                    <input 
+                      type="text" 
+                      value={newRepoName}
+                      onChange={(e) => setNewRepoName(e.target.value)}
+                      className="w-full bg-black/50 border border-zinc-700/50 rounded-2xl px-4 py-3.5 text-white focus:border-ios-blue focus:ring-1 focus:ring-ios-blue outline-none transition-all placeholder-zinc-600"
+                      placeholder="repository-name"
+                      autoFocus
+                    />
                   </div>
-                </label>
+
+                  <div>
+                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1 mb-2 block">Privacy</label>
+                     <div className="flex bg-black/50 p-1 rounded-2xl border border-zinc-700/50">
+                        <button 
+                          onClick={() => setIsPrivate(false)}
+                          className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${!isPrivate ? 'bg-zinc-700 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                          Public
+                        </button>
+                        <button 
+                          onClick={() => setIsPrivate(true)}
+                          className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${isPrivate ? 'bg-zinc-700 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                          Private
+                        </button>
+                     </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider ml-1 mb-2 block">Description</label>
+                    <input 
+                      type="text" 
+                      value={newRepoDesc}
+                      onChange={(e) => setNewRepoDesc(e.target.value)}
+                      className="w-full bg-black/50 border border-zinc-700/50 rounded-2xl px-4 py-3.5 text-white focus:border-ios-blue focus:ring-1 focus:ring-ios-blue outline-none transition-all placeholder-zinc-600"
+                      placeholder="Optional description"
+                    />
+                  </div>
+
+                  <div className="pt-2">
+                     <div className="flex justify-between items-center py-3 border-b border-white/5">
+                        <span className="text-sm font-medium">Add README</span>
+                        <input 
+                          type="checkbox" 
+                          checked={autoInit}
+                          onChange={(e) => setAutoInit(e.target.checked)}
+                          className="w-6 h-6 rounded-md bg-zinc-800 border-zinc-600 checked:bg-ios-blue accent-ios-blue"
+                        />
+                     </div>
+                     <div className="flex justify-between items-center py-3 border-b border-white/5">
+                        <span className="text-sm font-medium text-zinc-400">.gitignore</span>
+                        <select 
+                           value={gitignore} 
+                           onChange={(e) => setGitignore(e.target.value)}
+                           className="bg-transparent text-ios-blue text-sm font-medium outline-none text-right cursor-pointer"
+                        >
+                           {GITIGNORE_TEMPLATES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                     </div>
+                     <div className="flex justify-between items-center py-3">
+                        <span className="text-sm font-medium text-zinc-400">License</span>
+                        <select 
+                           value={license} 
+                           onChange={(e) => setLicense(e.target.value)}
+                           className="bg-transparent text-ios-blue text-sm font-medium outline-none text-right cursor-pointer"
+                        >
+                           {LICENSE_TEMPLATES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                     </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-white mb-2">Initialize this repository with:</h4>
-                
-                <label className="flex items-center gap-2 mb-3 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={autoInit}
-                    onChange={(e) => setAutoInit(e.target.checked)}
-                    className="rounded bg-[#0d1117] border-gray-600"
-                  />
-                  <span className="text-sm">Add a README file</span>
-                </label>
-
-                <div className="mb-3">
-                   <label className="block text-xs font-medium mb-1 text-github-secondary">Add .gitignore</label>
-                   <select 
-                     value={gitignore}
-                     onChange={(e) => setGitignore(e.target.value)}
-                     className="w-full bg-[#21262d] border border-[#30363d] rounded px-2 py-1.5 text-sm text-white outline-none focus:border-blue-500"
-                   >
-                     {GITIGNORE_TEMPLATES.map(t => <option key={t} value={t}>{t}</option>)}
-                   </select>
-                </div>
-
-                <div>
-                   <label className="block text-xs font-medium mb-1 text-github-secondary">Choose a license</label>
-                   <select 
-                     value={license}
-                     onChange={(e) => setLicense(e.target.value)}
-                     className="w-full bg-[#21262d] border border-[#30363d] rounded px-2 py-1.5 text-sm text-white outline-none focus:border-blue-500"
-                   >
-                     {LICENSE_TEMPLATES.map(t => <option key={t} value={t}>{t}</option>)}
-                   </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2 border-t border-[#30363d]">
-                <button 
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-sm font-medium hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
+              {/* Footer Actions */}
+              <div className="p-6 pt-2 pb-8 sm:pb-6 bg-[#1c1c1e] border-t border-white/5">
                 <button 
                   onClick={handleCreateRepo}
                   disabled={creatingRepo || !newRepoName}
-                  className="bg-[#238636] hover:bg-[#2ea043] text-white px-4 py-2 rounded text-sm font-medium disabled:opacity-50 flex items-center gap-2 transition-colors"
+                  className="w-full bg-white text-black py-4 rounded-2xl font-bold text-[17px] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
                 >
-                  {creatingRepo && <Loader2 size={14} className="animate-spin" />}
-                  Create Repository
+                  {creatingRepo ? <Loader2 size={20} className="animate-spin" /> : 'Create Repository'}
                 </button>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
   );
 };
 
-const App: React.FC = () => {
+export default function App() {
   return (
     <AuthProvider>
       <AppContent />
     </AuthProvider>
   );
-};
-
-export default App;
+}
